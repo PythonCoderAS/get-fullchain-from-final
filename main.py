@@ -5,7 +5,7 @@ import re
 from requests import Session
 import sys
 
-ca_url_pattern = re.compile(r'CA Issuers \- URI:(\S+)\n')
+ca_url_pattern = re.compile(r'CA Issuers - URI:(\S+)')
 
 class CertChainBuilder:
     def get_next_cert_url(self, cert_data: bytes):
@@ -46,7 +46,7 @@ class CertChainBuilder:
         next_url = self.get_next_cert_url(inital_cert)
         while next_url:
             if self.verbose:
-                print(f"Fetching next certificate from {next_url}", file=sys.stderr)
+                print(f"Fetching next certificate from {next_url}")
             next_cert = self.get_cert_from_url(next_url)
             next_url = self.get_next_cert_url(next_cert)
 
@@ -59,6 +59,7 @@ class CertChainBuilder:
         # Intermediate Certs: Highest -> Lowest (in the context of self.certs, this means from higher indices to lower)
         # Initial: self.certs[0]
         # Root: self.certs[-1]
+        assert len(self.certs) >= 2
         chain = [self.get_cert_pem(self.certs[0])]
         for cert in self.certs[-2:0:-1]: # Starts from the second highest index and goes to the second lowest index
             chain.append(self.get_cert_pem(cert))
