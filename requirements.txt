@@ -1,0 +1,2 @@
+pyopenssl==24.2.1
+requests==2.32.3
