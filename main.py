@@ -83,6 +83,10 @@ def main(args=None):
             f.write(chain)
     else:
         print(chain)
+    if args.save_intermediate_certificates:
+        for i, cert in enumerate(builder.certs[1:]):
+            with open(f"{builder.get_cert_common_name(cert)}.pem", "w") as f:
+                f.write(builder.get_cert_pem(cert) + "\n")
     return
 
 if __name__ == "__main__":
