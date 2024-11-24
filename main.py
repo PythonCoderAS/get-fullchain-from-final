@@ -1,9 +1,11 @@
 import argparse
+import socket
 
 from OpenSSL import crypto
 import re
 from requests import Session
 import sys
+from ssl import get_server_certificate
 
 ca_url_pattern = re.compile(r'CA Issuers - URI:(\S+)')
 
@@ -68,13 +70,34 @@ class CertChainBuilder:
 
 def main(args=None):
     parser = argparse.ArgumentParser(description="Build a certificate chain from a certificate")
-    parser.add_argument("cert", help="The certificate to build the chain from")
+    parser.add_argument("cert", help="The certificate to build the chain from (either a file path or a hostname/hostname+port combination, use '-' to read from stdin)")
     parser.add_argument("--out", help="The file to write the chain to (otherwise writes to stdout)")
     parser.add_argument("--verbose", help="Logs intermediate certificate URLs", action="store_true")
     parser.add_argument("--save-intermediate-certificates", help="Saves intermediate certificates", action="store_true")
     args = parser.parse_args(args)
-    with open(args.cert, "rb") as f:
-        cert_data = f.read()
+    if args.cert == "-":
+        cert_data = sys.stdin.buffer.read()
+    else:
+        try:
+            with open(args.cert, "rb") as f:
+                cert_data = f.read()
+        except FileNotFoundError:
+            # Treat it as a hostname or hostname+port combination
+            if "/" in args.cert:
+                print("Invalid certificate path: " + args.cert, file=sys.stderr)
+                sys.exit(1)
+            hostname, sep, port = args.cert.partition(":")
+            if not sep:
+                port = 443
+            else:
+                port = int(port)
+            try:
+                if args.verbose:
+                    print(f"Fetching certificate for {hostname}:{port}")
+                cert_data = get_server_certificate((hostname, port)).encode("utf-8")
+            except socket.gaierror:
+                print(f"Could not resolve hostname: {hostname}", file=sys.stderr)
+                sys.exit(1)
     builder = CertChainBuilder(verbose=args.verbose)
     builder.feed(cert_data)
     chain = builder.build_chain()
